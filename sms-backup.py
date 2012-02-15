@@ -242,7 +242,7 @@ def find_sms_db():
 def copy_sms_db(db):
     """Copy db to a tmp file, and return filename of copy."""
     try:
-        orig = open(db, 'r')
+        orig = open(db, 'rb')
     except:
         logging.error("Unable to open DB file: %s" % db)
         sys.exit(1)
@@ -599,17 +599,19 @@ def main():
         global ORIG_DB, COPY_DB 
         ORIG_DB = args.db_file or find_sms_db()
         COPY_DB = copy_sms_db(ORIG_DB)
-        
         aliases = alias_map(args.aliases)
         query, params = build_msg_query(args.numbers, args.emails)
     
-        conn = sqlite3.connect(COPY_DB)
-        conn.row_factory = sqlite3.Row
-        conn.create_function("TRUNC", 1, trunc)
-        cur = conn.cursor()
-        cur.execute(query, params)
-        logging.debug("Run query: %s" % (query))
-        logging.debug("With query params: %s" % (params,))
+        try:
+            conn = sqlite3.connect(COPY_DB)
+            conn.row_factory = sqlite3.Row
+            conn.create_function("TRUNC", 1, trunc)
+            cur = conn.cursor()
+            cur.execute(query, params)
+            logging.debug("Run query: %s" % (query))
+            logging.debug("With query params: %s" % (params,))
+        except:
+            raise
     
         messages = []
         for row in cur:
@@ -630,10 +632,10 @@ def main():
                    'text': fmt_text}
             messages.append(msg)
         
-        conn.close()
         output(messages, args.output, args.format, args.header)
     finally:
         if COPY_DB: 
+            conn.close()
             os.remove(COPY_DB)
             logging.debug("Deleted COPY_DB: %s" % COPY_DB)
 
